@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark"
+		initialize="init()" 
+		title="Configuration"
+		gestureRotate="onViewRotate(event)" 
+		viewActivate="onViewActive()"
+		viewDeactivate="onViewDeactive()">
+	<fx:Script>
+		<![CDATA[			
+			import mx.charts.chartClasses.NumericAxis;
+			
+			import spark.events.TextOperationEvent;
+								
+			private var checkBox_url_dict:Dictionary = new Dictionary();
+			private var loading_data:Boolean = true;
+						
+			private function init():void
+			{
+			}
+			private function onViewActive():void
+			{				
+				this.addEventListener(TransformGestureEvent.GESTURE_SWIPE, onSwipe);
+				this.addEventListener(MouseEvent.CLICK,onMouseClick);
+				
+				checkBox_url_dict[checkCatCaptions] = "http://www.reddit.com/r/catpictures/.xml";
+				checkBox_url_dict[checkEarth]       = "http://www.reddit.com/r/earthporn.xml";
+				checkBox_url_dict[checkPictures]    = "http://www.reddit.com/r/pics/.xml";				
+				checkBox_url_dict[checkCity]        = "http://www.reddit.com/r/cityporn/.xml";
+				checkBox_url_dict[checkWater]       = "http://www.reddit.com/r/waterporn/.xml";
+				checkBox_url_dict[checkHistory]     = "http://www.reddit.com/r/historyporn/.xml";
+				loaddata();			
+				
+			}
+			private function loaddata():void
+			{
+				loading_data = true;
+				// where are getting the images from
+				// load the saved config file
+				var f:File = File.applicationStorageDirectory.resolvePath("imagesource.txt");
+				
+				if ( f.exists  )
+				{
+					var stream:FileStream = new FileStream();
+					var data:Object;
+					var selected:Number = 0;
+					
+					stream.open(f,FileMode.READ);
+					data = stream.readObject();
+					stream.close();
+					
+					var sources:Array = data["urls"];
+					var interval:int = data["interval"];
+					var user:String  = data["textUserSelected"];
+					
+					if ( user && user.length > 0 )
+						textUserSelected.text = user;
+					
+					sliderInterval.value = Math.min(sliderInterval.maximum,Math.max(sliderInterval.minimum,interval)); 
+					// unselect all the check boxes
+					for(var check:Object in checkBox_url_dict)
+					{						
+						if ( sources.length > 0 && sources.indexOf( checkBox_url_dict[check] ) != -1 && check.visible )
+						{	// found it!!
+							check.selected = true;
+							selected += 1;
+						}
+						else
+						{	// did not find it
+							check.selected = false;
+						}
+					} // for all the checkbox in the dictionary!!
+				} // if exists
+				else
+				{// create it
+					savedata();
+				}
+				loading_data = false;
+			} // int
+			
+			protected function onViewDeactive():void
+			{				
+			}			
+			protected function onStageOrientation(event:StageOrientationEvent):void
+			{
+				switch( event.afterOrientation )
+				{
+					case "default" :
+					case "upsideDown" :
+						break;
+					default :
+						break;							
+				} // switch
+			}
+			protected function onViewRotate(event:TransformGestureEvent):void
+			{		
+			}
+
+			protected function onButtonDone(event:MouseEvent):void
+			{
+				navigator.popView(); // return to main view or previous view				
+			}
+			
+			private function onSwipe(event:TransformGestureEvent):void
+			{
+				// do not swipe on this page since we have a slider bar!!
+				//navigator.pushView( CoolPixImageViewerView,null);							
+			}
+			
+			private function onMouseClick(event:MouseEvent):void
+			{
+			
+			}
+			protected function textUserSelected_changeHandler(event:TextOperationEvent):void
+			{
+			
+			}
+			protected function textUserSelected_focusOutHandler(event:FocusEvent):void
+			{
+				savedata();							
+			}
+			protected function textUserSelected_enterHandler(ti:TextInput):void
+			{
+				stage.focus = null; // hide the keyboard
+				checkCity.setFocus();
+			}
+			
+			protected function onSliderChange(event:Event):void
+			{
+				savedata();
+			}
+			protected function onCheck(event:MouseEvent):void
+			{				
+				if ( loading_data )
+				{
+					// do nothing
+				}
+				else
+				{
+					if ( savedata() )
+					{
+						
+					}
+					else
+					{ // error, but the value back!
+						loaddata();
+					}
+				}
+			}
+			
+			private function savedata():Boolean
+			{
+				var sources:Array = new Array();
+				
+				for(var key:Object in checkBox_url_dict)
+				{
+					if ( key.selected && key.visible )
+						sources.unshift(checkBox_url_dict[key]);
+				}
+					
+				if ( sources.length > 0 )
+				{
+					var data:Object = new Object();
+					var f:File = File.applicationStorageDirectory.resolvePath("imagesource.txt");
+					var s:FileStream = new FileStream();
+					
+					data["textUserSelected"] = textUserSelected.text;
+					data["urls"] = sources;
+					data["interval"] = sliderInterval.value;					
+				
+					trace("Saving data");
+					s.open(f,FileMode.WRITE);
+					s.writeObject(data);
+					s.close();
+					return true;
+				} // got atleast one source!
+				return false;				
+			}														
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>	
+	<s:VGroup left="20" right="20" top="10" bottom="10">
+		<s:TextInput id="textUserSelected" 
+					 focusOut="textUserSelected_focusOutHandler(event)" 
+					 change="textUserSelected_changeHandler(event)" 
+					 enter="textUserSelected_enterHandler(textUserSelected)"
+					 enabled="true" 
+					 prompt="User Selected"
+					 returnKeyLabel="done"
+					 />
+		<s:TileGroup id="groupCheckBoxes" width="100%" 
+					 columnWidth="{width/groupCheckBoxes.columnCount}"
+					 orientation="rows" 
+					 requestedColumnCount="{Math.max(1,Math.min(Math.ceil(width/height),2))}">
+			<s:CheckBox id="checkCity" width="50%" label="City" click="onCheck(event)" enabled="true"
+						selected="true"/>
+			<s:CheckBox id="checkWater" width="50%" label="Water" click="onCheck(event)" enabled="true"
+						selected="true"/>
+			<s:CheckBox id="checkCatCaptions" width="100%" label="Cat Captions" click="onCheck(event)"
+						enabled="true" selected="true"/>
+			<s:CheckBox id="checkHistory" width="100%" label="History" click="onCheck(event)" enabled="true"
+						selected="true"/>
+			<s:CheckBox id="checkEarth" width="100%" label="Earth" click="onCheck(event)" enabled="true" selected="true"/>
+			<s:CheckBox id="checkPictures" width="100%" label="Pictures" click="onCheck(event)" enabled="true" selected="true"/>
+		</s:TileGroup>
+		<s:HSlider id="sliderInterval" x="447" y="324" width="90%" change="onSliderChange(event)" liveDragging="false" maximum="60" minimum="1"/>
+		<s:Spacer width="10" height="5"/>		
+		<s:Button id="buttonDone" label="Done" click="onButtonDone(event)"/>
+	</s:VGroup>
+</s:View>
